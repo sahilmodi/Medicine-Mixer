@@ -1,23 +1,31 @@
-# SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
-# SPDX-License-Identifier: MIT
-
-"""Simple test for using adafruit_motorkit with a DC motor"""
+import math
 import time
-import board
-from adafruit_motorkit import MotorKit
+import argparse
 
-kit = MotorKit(i2c=board.I2C())
+from common import *
 
-def set_all_motors(throttle=0):
-    global kit
-    motors = [eval(f'kit.motor{i}') for i in range(1, 5)]
-    for m in motors:
-        m.throttle = throttle
+ap = argparse.ArgumentParser()
+ap.add_argument("-f", "--frequency", type=float, default=4, help="Number of updates per second")
+ap.add_argument("-v", "--verbose", action='store_true', help="Print logs")
 
-set_all_motors(1.0)
-time.sleep(1.0)
-set_all_motors()
-time.sleep(0.25)
-set_all_motors(-1.0)
-time.sleep(1.0)
-set_all_motors()
+def motor_controller(timestep):
+    thr = math.cos(timestep)
+    direc = 1 if thr > 0 else -1
+    if 0 < abs(thr) < MIN_MOTOR_SPEED_ABS:
+        thr = direc * MIN_MOTOR_SPEED_ABS
+    return thr
+
+def main(args):
+    timestep = 0
+    delay = 1 / args.frequency
+    while True:
+        throttle = motor_controller(timestep)
+        if args.verbose:
+            print(f"T={timestep}: {throttle}")
+        set_all_motors(throttle)
+        time.sleep(delay)
+        timestep += math.pi / 6
+
+if __name__ == '__main__':
+    args = ap.parse_args()
+    main(args)
